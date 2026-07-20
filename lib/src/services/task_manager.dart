@@ -8,9 +8,19 @@ enum TaskSort { none, priority, deadline }
 
 class TaskManager {
   TaskManager({required File storageFile})
-      : _repository = TaskRepository<Task>(storageFile: storageFile);
+      : _repository = TaskRepository<Task>(storageFile: storageFile) {
+    _sequence = _repository.getAll().fold<int>(0, (max, task) {
+      final index = int.tryParse(task.id.split('-').last) ?? 0;
+      return index > max ? index : max;
+    });
+  }
 
   final TaskRepository<Task> _repository;
+
+  /// Monotonically increasing counter used to mint task ids. Kept in
+  /// memory (seeded from the highest id on disk) so a deletion never
+  /// causes an id to be reused within the lifetime of this manager.
+  late int _sequence;
 
   Task addTask(String title, TaskPriority priority, {DateTime? deadline, bool isUrgent = false, String contact = 'n/a'}) {
     if (title.trim().isEmpty) {
@@ -71,30 +81,11 @@ class TaskManager {
     if (task == null) {
       throw TaskNotFoundException(id);
     }
-
-    if (task is UrgentTask) {
-      _repository.update(
-        UrgentTask(
-          id: task.id,
-          title: task.title,
-          priority: task.priority,
-          deadline: task.deadline,
-          isDone: true,
-          contact: task.contact,
-        ),
-      );
-      return;
+    if (task.isDone) {
+      throw InvalidTaskDataException('Task "$id" is already marked as done.');
     }
 
-    _repository.update(
-      BasicTask(
-        id: task.id,
-        title: task.title,
-        priority: task.priority,
-        deadline: task.deadline,
-        isDone: true,
-      ),
-    );
+    _repository.update(task.copyWith(isDone: true));
   }
 
   void deleteTask(String id) {
@@ -102,14 +93,7 @@ class TaskManager {
   }
 
   String _nextId() {
-    final tasks = _repository.getAll();
-    var maxIndex = 0;
-    for (final task in tasks) {
-      final index = int.tryParse(task.id.split('-').last) ?? 0;
-      if (index > maxIndex) {
-        maxIndex = index;
-      }
-    }
-    return 'task-${maxIndex + 1}';
+    _sequence += 1;
+    return 'task-$_sequence';
   }
 }

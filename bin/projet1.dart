@@ -35,6 +35,12 @@ void main(List<String> arguments) {
         default:
           print('Choix invalide, veuillez réessayer.\n');
       }
+    } on TaskNotFoundException catch (error) {
+      print('Tâche introuvable : ${error.message}\n');
+    } on InvalidTaskDataException catch (error) {
+      print('Saisie invalide : ${error.message}\n');
+    } on StorageException catch (error) {
+      print('Erreur de stockage : ${error.message}\n');
     } on TaskException catch (error) {
       print('Erreur : ${error.message}\n');
     }

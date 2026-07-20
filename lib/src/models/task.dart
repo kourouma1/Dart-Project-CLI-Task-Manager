@@ -2,6 +2,8 @@ import 'package:projet1/src/exceptions/task_exception.dart';
 
 enum TaskPriority { low, medium, high }
 
+/// Base type of every task. Concrete tasks (`BasicTask`, `UrgentTask`)
+/// extend this class directly, each bringing its own behaviour.
 abstract class Task {
   Task({
     required this.id,
@@ -31,11 +33,24 @@ abstract class Task {
 
   static TaskPriority parsePriority(String value) {
     for (final priority in TaskPriority.values) {
-      if (priority.name.toLowerCase() == value.toLowerCase()) {
+      if (priority.name.toLowerCase() == value.trim().toLowerCase()) {
         return priority;
       }
     }
-    throw InvalidTaskDataException('Priority "$value" is invalid.');
+    throw InvalidTaskDataException(
+      'Priority "$value" is invalid. Expected one of: low, medium, high.',
+    );
+  }
+
+  static Map<String, dynamic> baseJson(Task task) {
+    return {
+      'id': task.id,
+      'title': task.title,
+      'priority': task.priority.name,
+      'deadline': task.deadline?.toIso8601String(),
+      'isDone': task.isDone,
+      'type': task.typeTag,
+    };
   }
 
   static Task fromJson(Map<String, dynamic> json) {
@@ -47,6 +62,7 @@ abstract class Task {
   }
 }
 
+/// A regular task with no special handling. Directly extends [Task].
 class BasicTask extends Task {
   BasicTask({
     required super.id,
@@ -57,6 +73,9 @@ class BasicTask extends Task {
   });
 
   factory BasicTask.fromJson(Map<String, dynamic> json) {
+    if (json['id'] == null || json['title'] == null) {
+      throw InvalidTaskDataException('A basic task requires an id and a title.');
+    }
     return BasicTask(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -75,16 +94,7 @@ class BasicTask extends Task {
   String get typeTag => 'basic';
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'priority': priority.name,
-      'deadline': deadline?.toIso8601String(),
-      'isDone': isDone,
-      'type': typeTag,
-    };
-  }
+  Map<String, dynamic> toJson() => Task.baseJson(this);
 
   @override
   Task copyWith({
@@ -104,7 +114,10 @@ class BasicTask extends Task {
   }
 }
 
-class UrgentTask extends BasicTask {
+/// A task that requires immediate attention and carries a [contact] to
+/// notify. Directly extends [Task] (not [BasicTask]) so the inheritance
+/// chain `Task -> UrgentTask` stays explicit.
+class UrgentTask extends Task {
   UrgentTask({
     required super.id,
     required super.title,
@@ -115,6 +128,9 @@ class UrgentTask extends BasicTask {
   });
 
   factory UrgentTask.fromJson(Map<String, dynamic> json) {
+    if (json['id'] == null || json['title'] == null) {
+      throw InvalidTaskDataException('An urgent task requires an id and a title.');
+    }
     return UrgentTask(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -136,11 +152,10 @@ class UrgentTask extends BasicTask {
   String get typeTag => 'urgent';
 
   @override
-  Map<String, dynamic> toJson() {
-    final result = super.toJson();
-    result['contact'] = contact;
-    return result;
-  }
+  Map<String, dynamic> toJson() => {
+        ...Task.baseJson(this),
+        'contact': contact,
+      };
 
   @override
   Task copyWith({
