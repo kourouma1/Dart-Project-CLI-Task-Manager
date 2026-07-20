@@ -2,8 +2,11 @@ import 'package:projet1/src/exceptions/task_exception.dart';
 
 enum TaskPriority { low, medium, high }
 
-/// Base type of every task. Concrete tasks (`BasicTask`, `UrgentTask`)
-/// extend this class directly, each bringing its own behaviour.
+/// Base type of every task in the app.
+///
+/// Inheritance chain: `Task` (abstract) -> `BasicTask` (concrete) ->
+/// `UrgentTask` (adds a `contact` to notify). Each level adds behaviour
+/// on top of the previous one instead of duplicating it.
 abstract class Task {
   Task({
     required this.id,
@@ -62,7 +65,7 @@ abstract class Task {
   }
 }
 
-/// A regular task with no special handling. Directly extends [Task].
+/// A regular task with no special handling. Extends [Task] directly.
 class BasicTask extends Task {
   BasicTask({
     required super.id,
@@ -115,9 +118,10 @@ class BasicTask extends Task {
 }
 
 /// A task that requires immediate attention and carries a [contact] to
-/// notify. Directly extends [Task] (not [BasicTask]) so the inheritance
-/// chain `Task -> UrgentTask` stays explicit.
-class UrgentTask extends Task {
+/// notify. Extends [BasicTask] (which itself extends [Task]), giving the
+/// three-level chain `Task -> BasicTask -> UrgentTask` and letting
+/// `UrgentTask` reuse `BasicTask`'s JSON encoding via `super.toJson()`.
+class UrgentTask extends BasicTask {
   UrgentTask({
     required super.id,
     required super.title,
@@ -153,7 +157,7 @@ class UrgentTask extends Task {
 
   @override
   Map<String, dynamic> toJson() => {
-        ...Task.baseJson(this),
+        ...super.toJson(),
         'contact': contact,
       };
 

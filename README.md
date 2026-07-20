@@ -25,9 +25,25 @@ lib/
 bin/
   projet1.dart                     # interactive CLI entry point
 test/
-  projet1_test.dart                # unit tests
+  projet1_test.dart                # end-to-end smoke test (public API)
+  models/task_test.dart            # unit tests for Task/BasicTask/UrgentTask
+  repositories/task_repository_test.dart # unit tests for TaskRepository<T>
+  services/task_manager_test.dart  # unit tests for TaskManager
+  exceptions/task_exception_test.dart # unit tests for the exception hierarchy
 .github/workflows/dart.yml         # CI: pub get, analyze, test on every push
 ```
+
+### Architecture
+
+The `lib/src` folder is split into layers, each with a single responsibility:
+
+- **`models`** — plain data classes (`Task`, `BasicTask`, `UrgentTask`) with no I/O.
+- **`repositories`** — persistence layer (`Repository<T>` interface, `TaskRepository<T>` JSON implementation).
+- **`services`** — business logic (`TaskManager`), orchestrating repositories and models.
+- **`exceptions`** — the `TaskException` hierarchy, shared across all layers.
+- **`bin/projet1.dart`** — the presentation layer: an interactive CLI on top of `TaskManager`.
+
+The test suite mirrors this layering, with one test file per layer (see above), plus a top-level end-to-end test.
 
 ## Requirements
 
@@ -86,7 +102,7 @@ Tâche créée avec succès : [ ] task-1 | Appeler le client | priorité: high |
 
 ## Running the tests
 
-The project has unit tests written with the [`test`](https://pub.dev/packages/test) package, covering task creation, urgent tasks, id assignment after deletion, marking as done (including error cases), deletion, sorting (by priority and by deadline), JSON persistence and the `Repository<T>` contract:
+The project has 35+ unit tests written with the [`test`](https://pub.dev/packages/test) package, split across five files (one per architectural layer, see [Architecture](#architecture) above): model creation and JSON round-tripping, the `Repository<T>` contract (including corrupted-file handling via `StorageException`), business rules in `TaskManager` (id assignment after deletion, marking as done, error cases), sorting (by priority and by deadline), and the custom exception hierarchy.
 
 ```bash
 dart test
@@ -104,7 +120,7 @@ dart analyze
 
 ## Technical highlights
 
-- **Abstract classes & inheritance**: `Task` is abstract. Both `BasicTask` and `UrgentTask` extend `Task` directly, each providing its own `toJson`/`copyWith`/`fromJson`.
+- **Abstract classes & inheritance**: `Task` is abstract. `BasicTask` extends `Task`, and `UrgentTask` extends `BasicTask` — a three-level chain (`Task -> BasicTask -> UrgentTask`) where `UrgentTask` adds a `contact` field and reuses `BasicTask`'s JSON encoding via `super.toJson()`.
 - **Interface**: `Repository<T>` is declared as `abstract interface class Repository<T>` — in Dart 3, the `interface` modifier means it can only be *implemented*, not extended, from outside its library. `TaskRepository<T>` implements it.
 - **Generics**: `Repository<T>` and `TaskRepository<T extends Task>`.
 - **Custom exceptions**: `TaskException` and its subtypes `InvalidTaskDataException`, `TaskNotFoundException`, `StorageException`, each caught and reported distinctly by the CLI.
