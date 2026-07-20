@@ -1,0 +1,6 @@
+# https://dart.dev/tools/private-files
+# Created by `dart pub`
+.dart_tool/
+
+# Local data file produced by running the CLI
+tasks.json
